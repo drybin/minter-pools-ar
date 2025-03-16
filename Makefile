@@ -16,7 +16,7 @@ upvendors:
 .PHONY: unit-test
 unit-test:
 	$(call _info,"Run unit tests...")
-	@go test -race ./internal/... \
+	@ GOFLAGS=-ldflags=-extldflags=-Wl,-ld_classic go test -race ./internal/... \
 		&& go test -race ./pkg/...
 
 ################################################################################################################
@@ -42,6 +42,6 @@ gensqlc:
 .PHONY: build
 build:
 	$(call _info,"Build with docker...")
-	docker run --init -it --rm --env-file .env -v ${PWD}:/app -w /app  golang:1.22 go build -o wca /app/cmd/cli/main.go
+	docker run --init -it --rm --env-file .env -v ${PWD}:/app -w /app  golang:1.22 go build -o minter /app/cmd/cli/main.go
 
 ################################################################################################################
