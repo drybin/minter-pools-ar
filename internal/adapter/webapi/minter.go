@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/MinterTeam/minter-go-sdk/v2/api/http_client"
 	"github.com/MinterTeam/minter-go-sdk/v2/transaction"
@@ -138,4 +140,80 @@ func (c *MinterWebapi) Buy(ctx context.Context, path model.Path) error {
 	//fmt.Printf("sendData: %v\n", sendData)
 	//os.Exit(1)
 	//return nil
+}
+
+func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*model.BuyRawResponse, error) {
+	w, _ := wallet.Create(c.passPhrase, "")
+	nonce, _ := c.client.Nonce(w.Address)
+
+	amountInFloat, err := strconv.ParseFloat(strings.TrimSpace(swapData.AmountIn), 64)
+	if err != nil {
+		log.Fatalf("failed to convert amountIn to float: %v", err)
+	}
+
+	amountIn := int64(math.Ceil(amountInFloat))
+
+	amountOutFloat, err := strconv.ParseFloat(strings.TrimSpace(swapData.AmountOut), 64)
+	if err != nil {
+		log.Fatalf("failed to convert amountIn to float: %v", err)
+	}
+
+	amountOut := int64(math.Ceil(amountOutFloat))
+
+	fmt.Printf("amountIn: %v\n", amountInFloat)
+	fmt.Printf("amountIn: %v\n", amountIn)
+
+	fmt.Printf("amountOut: %v\n", amountOutFloat)
+	fmt.Printf("amountOut: %v\n", amountOut)
+
+	amountInMinter := transaction.BipToPip(big.NewInt(amountIn))
+	amountOutMinter := transaction.BipToPip(big.NewInt(amountOut))
+
+	data := transaction.NewBuySwapPoolData().SetValueToBuy(amountOutMinter).SetMaximumValueToSell(amountInMinter)
+	for _, coin := range swapData.Coins {
+		data.AddCoin(uint64(coin.ID))
+	}
+
+	// Формируем BuySwapPool транзакцию через несколько пулов
+	tx, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
+
+	if err != nil {
+		return nil, wrap.Errorf("Ошибка создания транзакции: %w", err)
+	}
+
+	sign, _ := tx.SetNonce(nonce).SetGasPrice(1).SetGasCoin(0).Sign(w.PrivateKey)
+	encode, _ := sign.Encode()
+	//fmt.Printf("encode: %v\n", encode)
+	hash, _ := sign.Hash()
+	fmt.Printf("hash: %v\n", hash)
+
+	res, err := c.client.WithDebug(true).SendTransaction(encode)
+	//res, err := c.client.SendTransaction(encode)
+	if err != nil {
+		_, m, err := c.client.ErrorBody(err)
+
+		fmt.Println("TRANSACTION ERROR")
+		fmt.Printf("m=%v\n", m)
+		fmt.Printf("errorCode=%v\n", m.Error.Code)
+		fmt.Printf("error=%v\n", err)
+		return nil, wrap.Errorf("Ошибка проведения транзакции: %w", err)
+	}
+
+	if res.Code != 0 {
+		return nil, wrap.Errorf("Код транзакции: %d", res.Code)
+	}
+
+	balance, err := c.GetBalance(ctx, w.Address)
+	if err != nil {
+		return nil, wrap.Errorf("failed to get balance: %w", err)
+	}
+
+	result := model.BuyRawResponse{
+		AmountIn:        amountIn,
+		AmountOut:       amountOut,
+		TransactionHash: hash,
+		Balance:         *balance,
+	}
+
+	return &result, nil
 }

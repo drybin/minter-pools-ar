@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/drybin/minter-pools-ar/internal/adapter/webapi"
+	"github.com/drybin/minter-pools-ar/internal/domain/model"
+	"github.com/drybin/minter-pools-ar/pkg/telegram"
 	"github.com/drybin/minter-pools-ar/pkg/wrap"
 )
 
@@ -15,12 +17,20 @@ type ISearchWeb interface {
 }
 
 type SearchWeb struct {
-	MinterWeb *webapi.MinterWeb
+	MinterWeb    *webapi.MinterWeb
+	MinterWebapi *webapi.MinterWebapi
+	TgWebapi     *telegram.TelegramWebapi
 }
 
-func NewSearchWebUsecase(minterWeb *webapi.MinterWeb) *SearchWeb {
+func NewSearchWebUsecase(
+	minterWeb *webapi.MinterWeb,
+	minterWebapi *webapi.MinterWebapi,
+	tgWebapi *telegram.TelegramWebapi,
+) *SearchWeb {
 	return &SearchWeb{
-		MinterWeb: minterWeb,
+		MinterWeb:    minterWeb,
+		MinterWebapi: minterWebapi,
+		TgWebapi:     tgWebapi,
 	}
 }
 
@@ -54,9 +64,33 @@ func (u *SearchWeb) Process(ctx context.Context) error {
 			fmt.Printf("r: %v\n", r)
 			fmt.Printf("result: %f\n", result)
 			fmt.Printf("com: %f\n", *commission)
+			res, err := u.MinterWebapi.BuyRaw(
+				ctx,
+				*r,
+			)
+
+			if err != nil {
+				return wrap.Errorf("failed to process exchange: %w", err)
+			}
+
+			msg := generateTgMessage(*res, *commission)
+			u.TgWebapi.Send(msg)
 		}
 	}
 
 	fmt.Println("All done")
 	return nil
+}
+
+func generateTgMessage(response model.BuyRawResponse, commission float64) string {
+	newLine := "\n"
+
+	return fmt.Sprintf(
+		"Баланс %.2f"+newLine+
+			"amountIn %d amountOut %d commission %.2f"+newLine,
+		response.Balance,
+		response.AmountIn,
+		response.AmountOut,
+		commission,
+	)
 }

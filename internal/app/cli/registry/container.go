@@ -6,6 +6,7 @@ import (
     "github.com/drybin/minter-pools-ar/internal/app/cli/config"
     "github.com/drybin/minter-pools-ar/internal/app/cli/usecase"
     "github.com/drybin/minter-pools-ar/pkg/logger"
+    "github.com/drybin/minter-pools-ar/pkg/telegram"
     "github.com/drybin/minter-pools-ar/pkg/wrap"
     "github.com/go-resty/resty/v2"
 )
@@ -45,7 +46,10 @@ func NewContainer(
                 webapi.NewMinterWebapi(minterClient, config.PassPhrase),
             ),
             SearchWeb: usecase.NewSearchWebUsecase(
-                webapi.NewMinterWeb(httpClient)),
+                webapi.NewMinterWeb(httpClient),
+                webapi.NewMinterWebapi(minterClient, config.PassPhrase),
+                telegram.NewTelegramWebapi(httpClient, config.TgConfig.BotToken, config.TgConfig.ChatId),
+            ),
         },
         Clean: func() {
         },
