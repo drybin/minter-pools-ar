@@ -26,7 +26,6 @@ func PathAsStringWithLiquidity(data model.Path) string {
 	prevCoinName := data.Coin.Name
 
 	for _, item := range data.Path {
-		//fmt.Printf("%v\n", item)
 		amountToBuy := 0.0
 		poolAmount := 0.0
 		if item.Pair.Coin1Symbol == prevCoinName {

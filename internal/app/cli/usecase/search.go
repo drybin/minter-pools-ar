@@ -70,24 +70,6 @@ func (u *Search) Process(ctx context.Context) error {
 	t.AppendFooter(table.Row{"", "", "Total", allProfitPathsCount})
 	//t.Render()
 
-	/**
-	   $want = $amount+1;
-	         $str = (string) $want;
-	         //$swapPoolTx = new MinterSellSwapPoolTx($coinIds, $amount, $amount);
-	         $swapPoolTx = new MinterSellSwapPoolTx($coinIds, $amount, $str);
-	         $tx   = new MinterTx($nonce, $swapPoolTx);
-	         $transaction = $tx->sign($wallet->getPrivateKey());
-	         $comission = $this->minterClient->estimateTxCommission($transaction);
-
-	         echo 'Comission: ' . $comission . PHP_EOL;
-	         echo 'Transaction: ' . $transaction . PHP_EOL;
-	  //       die;
-	         $transactionResult = $this->minterClient->send($transaction);
-
-	         var_dump($transactionResult);die;
-	*/
-
-	//first := *allProfitPaths
 	for _, path := range *allProfitPaths {
 		_ = u.MinterWebapi.Buy(ctx, path)
 	}
@@ -230,18 +212,6 @@ func processPairs(
 
 	return path
 }
-
-//func (u *Search) getBipUsdPrice(ctx context.Context) (*float64, error) {
-//	res, err := u.MinterWebapi.GetSwapPoolInfo(
-//		ctx,
-//		model.ChainikCoin{Coin0Id: 1837, Coin1Id: 1},
-//	)
-//	if err != nil {
-//		return nil, wrap.Errorf("failed to get pair pool info: %w", err)
-//	}
-//
-//	return nil, nil
-//}
 
 func (u *Search) getMinCoinAmount(
 	coinName string,
