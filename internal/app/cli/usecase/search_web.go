@@ -39,66 +39,80 @@ func NewSearchWebUsecase(
 }
 
 func (u *SearchWeb) Process(ctx context.Context) error {
-    prices := []int{300, 500, 1000, 3000, 5000, 10000, 15000, 20000}
-    for _, price := range prices {
-        r, err := u.MinterWeb.GetPrice(ctx, price)
-        if err != nil {
-            return wrap.Errorf("failed to get minter swap info: %w", err)
-        }
+    attempts := []int{1, 2, 3}
+    
+    for _, attempt := range attempts {
+        processSuccess := false
         
-        commission, err := u.MinterWeb.GetCommission(ctx, r, price)
-        if err != nil {
-            return wrap.Errorf("failed to get minter swap commission info: %w", err)
-        }
-        
-        amountIn, err := strconv.ParseFloat(strings.TrimSpace(r.AmountIn), 64)
-        if err != nil {
-            return wrap.Errorf("failed to parse amountIn as float: %w", err)
-        }
-        
-        amountOut, err := strconv.ParseFloat(strings.TrimSpace(r.AmountOut), 64)
-        if err != nil {
-            return wrap.Errorf("failed to parse amountIn as float: %w", err)
-        }
-        
-        result := amountIn + *commission
-        if result < amountOut {
-            fmt.Println("SUCCESS")
-            fmt.Printf("Processing price %d\n", price)
-            fmt.Printf("r: %v\n", r)
-            fmt.Printf("result: %f\n", result)
-            fmt.Printf("com: %f\n", *commission)
-            res, err := u.MinterWebapi.BuyRaw(
-                ctx,
-                *r,
-            )
-            
+        prices := []int{300, 500, 1000, 3000, 5000, 10000, 15000, 20000}
+        for _, price := range prices {
+            r, err := u.MinterWeb.GetPrice(ctx, price)
             if err != nil {
-                return wrap.Errorf("failed to process exchange: %w", err)
+                return wrap.Errorf("failed to get minter swap info: %w", err)
             }
             
-            msg := generateTgMessage(*res, *commission)
-            _, err = u.TgWebapi.Send(msg)
+            commission, err := u.MinterWeb.GetCommission(ctx, r, price)
             if err != nil {
-                return wrap.Errorf("failed to send TG message: %w", err)
+                return wrap.Errorf("failed to get minter swap commission info: %w", err)
             }
+            
+            amountIn, err := strconv.ParseFloat(strings.TrimSpace(r.AmountIn), 64)
+            if err != nil {
+                return wrap.Errorf("failed to parse amountIn as float: %w", err)
+            }
+            
+            amountOut, err := strconv.ParseFloat(strings.TrimSpace(r.AmountOut), 64)
+            if err != nil {
+                return wrap.Errorf("failed to parse amountIn as float: %w", err)
+            }
+            
+            result := amountIn + *commission
+            if result < amountOut {
+                fmt.Println("SUCCESS")
+                fmt.Printf("Processing price %d\n", price)
+                fmt.Printf("r: %v\n", r)
+                fmt.Printf("result: %f\n", result)
+                fmt.Printf("com: %f\n", *commission)
+                res, err := u.MinterWebapi.BuyRaw(
+                    ctx,
+                    *r,
+                )
+                
+                if err != nil {
+                    return wrap.Errorf("failed to process exchange: %w", err)
+                }
+                
+                msg := generateTgMessage(*res, *commission, attempt)
+                _, err = u.TgWebapi.Send(msg)
+                if err != nil {
+                    return wrap.Errorf("failed to send TG message: %w", err)
+                }
+                
+                processSuccess = true
+            }
+        }
+        
+        if !processSuccess {
+            break
         }
     }
     
     fmt.Printf("All done %s\n", time.Now())
+    
     return nil
 }
 
-func generateTgMessage(response model.BuyRawResponse, commission float64) string {
+func generateTgMessage(response model.BuyRawResponse, commission float64, attempt int) string {
     newLine := "\n"
     
     return fmt.Sprintf(
         "Баланс %.2f"+newLine+
-            "amountIn %d amountOut %d commission %.2f"+newLine,
+            "amountIn %d amountOut %d commission %.2f attempt %d"+newLine,
         response.Balance,
         response.AmountIn,
         response.AmountOut,
         commission,
+        attempt,
     )
 }
 

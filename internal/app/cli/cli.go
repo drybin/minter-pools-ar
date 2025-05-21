@@ -31,6 +31,7 @@ func Run(config *config.Config) error {
 		command.NewHelloWorldCommand(cnt.Usecases.HelloWorld),
 		command.NewSearchCommand(cnt.Usecases.Search),
 		command.NewSearchWebCommand(cnt.Usecases.SearchWeb),
+		command.NewSearchWebOtherCommand(cnt.Usecases.SearchWeb),
 	}
 
 	return app.Run(os.Args)
