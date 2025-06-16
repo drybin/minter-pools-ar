@@ -3,7 +3,6 @@ package usecase
 import (
     "context"
     "fmt"
-    "math"
     "strconv"
     "strings"
     "time"
@@ -184,10 +183,6 @@ func (u *SearchWeb) ProcessOther(ctx context.Context) error {
         "SHEKEL",
         "LUNABSC",
         "GOODZONE",
-        "NFTBSC",
-        "ANKRBSC",
-        "MINTERINU",
-        "DAIQUIRI",
     }
     
     for _, coin := range coins {
@@ -209,46 +204,63 @@ func (u *SearchWeb) ProcessOther(ctx context.Context) error {
         priceInBip := priceInBipAmountOut / priceInBipAmountIn
         priceInBipReverse := priceInBipAmountIn / priceInBipAmountOut
         
-        for _, price := range prices {
-            priceToTryInBipFloat := float64(price) * priceInBipReverse
-            priceToTryInBip := int(math.Round(priceToTryInBipFloat))
+        //fmt.Println(coin)
+        //fmt.Printf("price in bip: %.2f\n", priceInBip)
+        //fmt.Printf("price in bip reverse: %.2f\n", priceInBipReverse)
+        
+        attempts := []int{1, 2, 3}
+        
+        for range attempts {
+            processSuccess := false
             
-            r, err := u.MinterWeb.GetPriceOther(ctx, coin, coin, priceToTryInBip)
-            if err != nil {
-                return wrap.Errorf("failed to get minter swap info (when get coin price): %w", err)
+            for _, price := range prices {
+                priceToTryInBipFloat := float64(price) * priceInBipReverse
+                //priceToTryInBip := int(math.Round(priceToTryInBipFloat))
+                
+                r, err := u.MinterWeb.GetPriceOtherFloat(ctx, coin, coin, priceToTryInBipFloat)
+                //fmt.Printf("r=%v\n", r)
+                if err != nil {
+                    return wrap.Errorf("failed to get minter swap info (when get coin price): %w", err)
+                }
+                
+                if utf8.RuneCountInString(r.AmountIn) == 0 || utf8.RuneCountInString(r.AmountOut) == 0 {
+                    continue
+                }
+                
+                amountIn, err := strconv.ParseFloat(strings.TrimSpace(r.AmountIn), 64)
+                if err != nil {
+                    return wrap.Errorf("failed to parse amountIn as float (when get coin price): %w", err)
+                }
+                
+                amountOut, err := strconv.ParseFloat(strings.TrimSpace(r.AmountOut), 64)
+                if err != nil {
+                    return wrap.Errorf("failed to parse amountIn as float (when get coin price %s): %w", r.AmountOut, err)
+                }
+                
+                if amountOut < amountIn {
+                    continue
+                }
+                
+                commission, err := u.MinterWeb.GetCommissionOtherFloat(ctx, r, coin, priceToTryInBipFloat)
+                if err != nil {
+                    return wrap.Errorf("failed to get minter swap commission info: %w", err)
+                }
+                
+                profit := amountOut - amountIn
+                profitInBip := profit * priceInBip
+                
+                if profitInBip > *commission {
+                    //fmt.Println("SUCCESS")
+                    fmt.Printf("%s  profitInBip: %.2f comission: %.2f ", coin, profitInBip, *commission)
+                    fmt.Printf("amountIn: %.2f amountOut: %.2f\n", amountIn, amountOut)
+                    processSuccess = true
+                    continue
+                }
             }
             
-            if utf8.RuneCountInString(r.AmountIn) == 0 || utf8.RuneCountInString(r.AmountOut) == 0 {
-                continue
-            }
-            
-            amountIn, err := strconv.ParseFloat(strings.TrimSpace(r.AmountIn), 64)
-            if err != nil {
-                return wrap.Errorf("failed to parse amountIn as float (when get coin price): %w", err)
-            }
-            
-            amountOut, err := strconv.ParseFloat(strings.TrimSpace(r.AmountOut), 64)
-            if err != nil {
-                return wrap.Errorf("failed to parse amountIn as float (when get coin price %s): %w", r.AmountOut, err)
-            }
-            
-            if amountOut < amountIn {
-                continue
-            }
-            
-            commission, err := u.MinterWeb.GetCommissionOther(ctx, r, coin, priceToTryInBip)
-            if err != nil {
-                return wrap.Errorf("failed to get minter swap commission info: %w", err)
-            }
-            
-            profit := amountOut - amountIn
-            profitInBip := profit * priceInBip
-            
-            if profitInBip > *commission {
-                //fmt.Println("SUCCESS")
-                fmt.Printf("%s  profitInBip: %.2f comission: %.2f ", coin, profitInBip, *commission)
-                fmt.Printf("amountIn: %.2f amountOut: %.2f\n", amountIn, amountOut)
-                continue
+            //fmt.Printf("%v", attempt)
+            if !processSuccess {
+                break
             }
         }
     }

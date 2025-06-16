@@ -69,6 +69,28 @@ func (c *MinterWeb) GetPriceOther(ctx context.Context, coin1 string, coin2 strin
     return &result, nil
 }
 
+func (c *MinterWeb) GetPriceOtherFloat(ctx context.Context, coin1 string, coin2 string, value float64) (*model.SwapData, error) {
+    //pipI := transaction.BipToPip(big.NewInt(int64(value)))
+    
+    //fl := big.NewFloat(value).SetPrec(4)
+    pip := transaction.FloatBipToPip(value)
+    
+    res, err := c.client.R().Get(
+        fmt.Sprintf(calc_url_other, coin1, coin2, pip),
+    )
+    if err != nil {
+        return nil, wrap.Errorf("failed to get swap info from minter api: %w", err)
+    }
+    
+    result := model.SwapData{}
+    err = json.Unmarshal(res.Body(), &result)
+    if err != nil {
+        return nil, wrap.Errorf("failed to unmarshal swap info: %w", err)
+    }
+    
+    return &result, nil
+}
+
 func (c *MinterWeb) GetCommission(ctx context.Context, swapData *model.SwapData, value int) (*float64, error) {
     pip := transaction.BipToPip(big.NewInt(int64(value)))
     
@@ -104,6 +126,41 @@ func (c *MinterWeb) GetCommission(ctx context.Context, swapData *model.SwapData,
 func (c *MinterWeb) GetCommissionOther(ctx context.Context, swapData *model.SwapData, coin string, value int) (*float64, error) {
     pip := transaction.BipToPip(big.NewInt(int64(value)))
     
+    //url := fmt.Sprintf(comission_url, pip)
+    url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin)
+    
+    for _, swapCoin := range swapData.Coins {
+        if swapCoin.Symbol == coin {
+            continue
+        }
+        url += fmt.Sprintf("&route=%d", swapCoin.ID)
+    }
+    
+    res, err := c.client.R().Get(url)
+    if err != nil {
+        return nil, wrap.Errorf("failed to get swap commission info from minter api: %w", err)
+    }
+    
+    result := model.SwapDetails{}
+    err = json.Unmarshal(res.Body(), &result)
+    if err != nil {
+        return nil, wrap.Errorf("failed to unmarshal swap commission info: %w", err)
+    }
+    
+    if len(result.Commission) == 0 {
+        res := 10000.0
+        return &res, nil
+    }
+    
+    commission, _ := helpers.BipFromApiToFloat(result.Commission)
+    
+    return commission, nil
+}
+
+func (c *MinterWeb) GetCommissionOtherFloat(ctx context.Context, swapData *model.SwapData, coin string, value float64) (*float64, error) {
+    //pip := transaction.BipToPip(big.NewInt(int64(value)))
+    
+    pip := transaction.FloatBipToPip(value)
     //url := fmt.Sprintf(comission_url, pip)
     url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin)
     
