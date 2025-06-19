@@ -17,7 +17,7 @@ const calc_url = "https://explorer-api.minter.network/api/v2/pools/coins/BIP/BIP
 const comission_url = "https://gate-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=BIP&value_to_buy=%s&coin_to_sell=BIP&swap_from=poold&coin_commission=BIP"
 
 const calc_url_other = "https://explorer-api.minter.network/api/v2/pools/coins/%s/%s/estimate?type=output&amount=%s"
-const comission_url_other = "https://gate-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=%s&value_to_buy=%s&coin_to_sell=%s&swap_from=poold&coin_commission=BIP"
+const comission_url_other = "https://gate-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=%s&value_to_buy=%s&coin_to_sell=%s&swap_from=poold&coin_commission=%s"
 
 type MinterWeb struct {
     client *resty.Client
@@ -127,7 +127,7 @@ func (c *MinterWeb) GetCommissionOther(ctx context.Context, swapData *model.Swap
     pip := transaction.BipToPip(big.NewInt(int64(value)))
     
     //url := fmt.Sprintf(comission_url, pip)
-    url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin)
+    url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin, coin)
     
     for _, swapCoin := range swapData.Coins {
         if swapCoin.Symbol == coin {
@@ -162,7 +162,7 @@ func (c *MinterWeb) GetCommissionOtherFloat(ctx context.Context, swapData *model
     
     pip := transaction.FloatBipToPip(value)
     //url := fmt.Sprintf(comission_url, pip)
-    url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin)
+    url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin, coin)
     
     for _, swapCoin := range swapData.Coins {
         if swapCoin.Symbol == coin {
