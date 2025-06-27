@@ -17,7 +17,10 @@ const calc_url = "https://explorer-api.minter.network/api/v2/pools/coins/BIP/BIP
 const comission_url = "https://gate-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=BIP&value_to_buy=%s&coin_to_sell=BIP&swap_from=poold&coin_commission=BIP"
 
 const calc_url_other = "https://explorer-api.minter.network/api/v2/pools/coins/%s/%s/estimate?type=output&amount=%s"
+
 const comission_url_other = "https://gate-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=%s&value_to_buy=%s&coin_to_sell=%s&swap_from=poold&coin_commission=%s"
+
+//const comission_url_other = "https://explorer-api.minter.network/api/v2/estimate_coin_buy?coin_to_buy=%s&value_to_buy=%s&coin_to_sell=%s&swap_from=poold&coin_commission=%s"
 
 type MinterWeb struct {
     client *resty.Client
@@ -70,9 +73,6 @@ func (c *MinterWeb) GetPriceOther(ctx context.Context, coin1 string, coin2 strin
 }
 
 func (c *MinterWeb) GetPriceOtherFloat(ctx context.Context, coin1 string, coin2 string, value float64) (*model.SwapData, error) {
-    //pipI := transaction.BipToPip(big.NewInt(int64(value)))
-    
-    //fl := big.NewFloat(value).SetPrec(4)
     pip := transaction.FloatBipToPip(value)
     
     res, err := c.client.R().Get(
@@ -158,10 +158,7 @@ func (c *MinterWeb) GetCommissionOther(ctx context.Context, swapData *model.Swap
 }
 
 func (c *MinterWeb) GetCommissionOtherFloat(ctx context.Context, swapData *model.SwapData, coin string, value float64) (*float64, error) {
-    //pip := transaction.BipToPip(big.NewInt(int64(value)))
-    
     pip := transaction.FloatBipToPip(value)
-    //url := fmt.Sprintf(comission_url, pip)
     url := fmt.Sprintf(comission_url_other, coin, pip.String(), coin, coin)
     
     for _, swapCoin := range swapData.Coins {

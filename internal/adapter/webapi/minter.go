@@ -11,6 +11,7 @@ import (
     "strings"
     
     "github.com/MinterTeam/minter-go-sdk/v2/api/http_client"
+    "github.com/MinterTeam/minter-go-sdk/v2/api/http_client/models"
     "github.com/MinterTeam/minter-go-sdk/v2/transaction"
     "github.com/MinterTeam/minter-go-sdk/v2/wallet"
     "github.com/drybin/minter-pools-ar/internal/domain/helpers"
@@ -20,15 +21,18 @@ import (
 
 type MinterWebapi struct {
     client     *http_client.Client
+    clientGate *http_client.Client
     passPhrase string
 }
 
 func NewMinterWebapi(
     client *http_client.Client,
+    clientGate *http_client.Client,
     passPhrase string,
 ) *MinterWebapi {
     return &MinterWebapi{
         client:     client,
+        clientGate: clientGate,
         passPhrase: passPhrase,
     }
 }
@@ -187,13 +191,15 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
     hash, _ := sign.Hash()
     fmt.Printf("hash: %v\n", hash)
     
-    res, err := c.client.WithDebug(true).SendTransaction(encode)
+    res, err := c.clientGate.WithDebug(true).SendTransaction(encode)
     //res, err := c.client.SendTransaction(encode)
     if err != nil {
-        _, m, err := c.client.ErrorBody(err)
+        _, m, err := c.clientGate.ErrorBody(err)
         
         fmt.Println("TRANSACTION ERROR")
-        fmt.Printf("m=%v\n", m)
+        if m != nil {
+            fmt.Printf("m=%v\n", m)
+        }
         fmt.Printf("errorCode=%v\n", m.Error.Code)
         fmt.Printf("error=%v\n", err)
         return nil, wrap.Errorf("Ошибка проведения транзакции: %w", err)
@@ -220,7 +226,10 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
 
 func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData) (*model.BuyRawResponse, error) {
     w, _ := wallet.Create(c.passPhrase, "")
-    nonce, _ := c.client.Nonce(w.Address)
+    nonce, err := c.client.Nonce(w.Address)
+    if err != nil {
+        log.Fatalf("failed to get nonce: %v", err)
+    }
     
     fmt.Printf("swapData: %v\n", swapData)
     amountInFloat, err := strconv.ParseFloat(strings.TrimSpace(swapData.AmountIn), 64)
@@ -228,22 +237,10 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
         log.Fatalf("failed to convert amountIn to float: %v", err)
     }
     
-    amountIn := *big.NewFloat(amountInFloat)
-    
     amountOutFloat, err := strconv.ParseFloat(strings.TrimSpace(swapData.AmountOut), 64)
     if err != nil {
         log.Fatalf("failed to convert amountIn to float: %v", err)
     }
-    
-    amountOut := *big.NewFloat(amountOutFloat)
-    
-    fmt.Printf("amountIn: %v\n", amountInFloat)
-    fmt.Printf("amountIn: %v\n", amountIn)
-    
-    fmt.Printf("amountOut: %v\n", amountOutFloat)
-    fmt.Printf("amountOut: %v\n", amountOut)
-    
-    //
     
     amountInMinter := transaction.FloatBipToPip(amountInFloat)
     amountOutMinter := transaction.FloatBipToPip(amountOutFloat)
@@ -253,34 +250,36 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
         data.AddCoin(uint64(coin.ID))
     }
     
-    // Формируем BuySwapPool транзакцию через несколько пулов
     tx, err := transaction.NewBuilder(transaction.MainNetChainID).NewTransaction(data)
     
     if err != nil {
-        return nil, wrap.Errorf("Ошибка создания транзакции: %w", err)
+        return nil, wrap.Errorf("Failed to create transaction: %w", err)
     }
     
-    //sign, _ := tx.SetNonce(nonce).SetGasPrice(2).SetGasCoin(0).Sign(w.PrivateKey)
-    sign, _ := tx.SetNonce(nonce).SetGasPrice(2).SetGasCoin(2684).Sign(w.PrivateKey)
+    sign, _ := tx.SetNonce(nonce).SetGasCoin(uint64(swapData.Coins[0].ID)).Sign(w.PrivateKey)
     encode, _ := sign.Encode()
-    //fmt.Printf("encode: %v\n", encode)
     hash, _ := sign.Hash()
-    fmt.Printf("hash: %v\n", hash)
     
-    res, err := c.client.WithDebug(true).SendTransaction(encode)
-    //res, err := c.client.SendTransaction(encode)
+    res, err := c.clientGate.WithDebug(true).SendTransaction(encode)
     if err != nil {
-        _, m, err := c.client.ErrorBody(err)
+        _, m, err := c.clientGate.ErrorBody(err)
         
         fmt.Println("TRANSACTION ERROR")
-        fmt.Printf("m=%v\n", m)
-        fmt.Printf("errorCode=%v\n", m.Error.Code)
         fmt.Printf("error=%v\n", err)
-        return nil, wrap.Errorf("Ошибка проведения транзакции: %w", err)
+        if m != nil {
+            needVal := c.tryToParseAmountError(m)
+            result := model.BuyRawResponse{
+                AmountInFloat: *needVal,
+            }
+            
+            return &result, wrap.Errorf("Failed to make transaction: %w", err)
+        }
+        
+        return nil, wrap.Errorf("Failed to make transaction: %w", err)
     }
     
     if res.Code != 0 {
-        return nil, wrap.Errorf("Код транзакции: %d", res.Code)
+        return nil, wrap.Errorf("Transaction code: %d", res.Code)
     }
     
     balance, err := c.GetBalance(ctx, w.Address)
@@ -296,4 +295,19 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
     }
     
     return &result, nil
+}
+
+func (c *MinterWebapi) tryToParseAmountError(m *models.ErrorBody) *float64 {
+    val, ok := m.Error.Data["needed_spend_value"]
+    
+    if ok {
+        spendVal, err := helpers.BipFromApiToFloat(val)
+        if err != nil {
+            return nil
+        }
+        
+        return spendVal
+    }
+    
+    return nil
 }
