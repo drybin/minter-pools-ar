@@ -209,7 +209,7 @@ func (u *SearchWeb) ProcessOther(ctx context.Context) error {
         
         priceInBipAmountIn, err := strconv.ParseFloat(strings.TrimSpace(priceInBipData.AmountIn), 64)
         if err != nil {
-            fmt.Printf("priceInBipData %v\n", priceInBipData)
+            fmt.Printf("coin %v priceInBipData %v\n", coin, priceInBipData)
             return wrap.Errorf("failed to parse amountIn as float (when get BIP price): %w", err)
         }
         
