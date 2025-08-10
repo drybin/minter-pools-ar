@@ -197,6 +197,11 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
         _, m, errBody := c.clientGate.ErrorBody(err)
         
         fmt.Println("TRANSACTION ERROR")
+        
+        if res != nil {
+            fmt.Printf("res=%v\n", res)
+        }
+        
         if m != nil {
             fmt.Printf("m=%v\n", m)
             fmt.Printf("errorCode=%v\n", m.Error.Code)
