@@ -203,6 +203,12 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
             fmt.Printf("res=%v\n", res)
         }
         
+        transactionResp, err := c.clientGate.Transaction(hash)
+        
+        if transactionResp != nil {
+            fmt.Printf("transactionResp=%v\n", transactionResp)
+        }
+        
         if m != nil {
             fmt.Printf("m=%v\n", m)
             fmt.Printf("errorCode=%v\n", m.Error.Code)
