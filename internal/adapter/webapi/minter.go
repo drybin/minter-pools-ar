@@ -198,6 +198,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
         
         fmt.Println("TRANSACTION ERROR")
         
+        fmt.Printf("client=%v\n", c.clientGate)
         fmt.Printf("error=%v\n", err)
         fmt.Printf("errorBody=%v\n", errBody)
         
@@ -228,6 +229,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
             fmt.Printf("transactionResp=%v\n", transactionResp)
         }
         
+        fmt.Printf("UnconfirmedTxsErr=%v\n", err)
         if m != nil {
             fmt.Printf("m=%v\n", m)
             fmt.Printf("errorCode=%v\n", m.Error.Code)
