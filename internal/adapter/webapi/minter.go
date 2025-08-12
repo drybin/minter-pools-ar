@@ -199,6 +199,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
         fmt.Println("TRANSACTION ERROR")
         
         fmt.Printf("client=%v\n", c.clientGate)
+        fmt.Printf("ClientService=%v\n", c.clientGate.ClientService)
         fmt.Printf("error=%v\n", err)
         fmt.Printf("errorBody=%v\n", errBody)
         
