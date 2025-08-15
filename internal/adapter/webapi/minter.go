@@ -195,51 +195,27 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
     //res, err := c.client.SendTransaction(encode)
     if err != nil {
         respCode, m, errBody := c.clientGate.ErrorBody(err)
-        
-        fmt.Println("TRANSACTION ERROR")
-        
-        fmt.Printf("client=%v\n", c.clientGate)
-        fmt.Printf("ClientService=%v\n", c.clientGate.ClientService)
-        fmt.Printf("error=%v\n", err)
-        fmt.Printf("errorBody=%v\n", errBody)
-        
-        fmt.Printf("respCode=%v\n", respCode)
-        if res != nil {
-            fmt.Printf("res=%v\n", res)
+        if respCode == 0 {
+            fmt.Println("TRANSACTION WARNING")
+        } else {
+            
+            fmt.Println("TRANSACTION ERROR")
+            
+            fmt.Printf("error=%v\n", err)
+            fmt.Printf("errorBody=%v\n", errBody)
+            
+            fmt.Printf("respCode=%v\n", respCode)
+            if res != nil {
+                fmt.Printf("res=%v\n", res)
+            }
+            
+            if m != nil {
+                fmt.Printf("m=%v\n", m)
+                fmt.Printf("errorCode=%v\n", m.Error.Code)
+            }
+            
+            return nil, wrap.Errorf("Ошибка проведения транзакции: %w", err)
         }
-        
-        status, err := c.clientGate.Status()
-        if err != nil {
-            fmt.Printf("statusErr=%v\n", err)
-        }
-        
-        fmt.Printf("status=%v\n", status)
-        
-        models, err := c.clientGate.UnconfirmedTxs(1)
-        if err != nil {
-            fmt.Printf("UnconfirmedTxsErr=%v\n", err)
-        }
-        
-        if models != nil {
-            fmt.Printf("modelErr=%v\n", *models)
-        }
-        
-        transactionResp, err := c.clientGate.Transaction(hash)
-        if transactionResp != nil {
-            fmt.Printf("transactionResp=%v\n", transactionResp)
-        }
-        
-        transactionResp2, err := c.client.Transaction(hash)
-        if transactionResp2 != nil {
-            fmt.Printf("transactionResp2=%v\n", transactionResp2)
-        }
-        
-        if m != nil {
-            fmt.Printf("m=%v\n", m)
-            fmt.Printf("errorCode=%v\n", m.Error.Code)
-        }
-        
-        return nil, wrap.Errorf("Ошибка проведения транзакции: %w", err)
     }
     
     if res.Code != 0 {
