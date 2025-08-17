@@ -218,7 +218,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
         }
     }
     
-    if res.Code != 0 {
+    if res != nil && res.Code != 0 {
         return nil, wrap.Errorf("Код транзакции: %d", res.Code)
     }
     
