@@ -238,6 +238,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
 }
 
 func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData) (*model.BuyRawResponse, error) {
+    fmt.Println("TRANSACTION ATTEMPT")
     w, _ := wallet.Create(c.passPhrase, "")
     nonce, err := c.client.Nonce(w.Address)
     if err != nil {
@@ -275,17 +276,30 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
     
     res, err := c.clientGate.WithDebug(true).SendTransaction(encode)
     if err != nil {
-        _, m, err := c.clientGate.ErrorBody(err)
+        respCode, m, errBody := c.clientGate.ErrorBody(err)
         
         fmt.Println("TRANSACTION ERROR")
         fmt.Printf("error=%v\n", err)
         if m != nil {
             needVal := c.tryToParseAmountError(m)
+            if needVal == nil {
+                return nil, wrap.Errorf("Failed to make transaction: %w", err)
+            }
+            
             result := model.BuyRawResponse{
                 AmountInFloat: *needVal,
             }
             
             return &result, wrap.Errorf("Failed to make transaction: %w", err)
+        }
+        
+        if respCode == 0 {
+            fmt.Println("TRANSACTION WARNING")
+        } else {
+            fmt.Printf("error=%v\n", err)
+            fmt.Printf("errorBody=%v\n", errBody)
+            
+            fmt.Printf("respCode=%v\n", respCode)
         }
         
         return nil, wrap.Errorf("Failed to make transaction: %w", err)
