@@ -302,12 +302,11 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
             fmt.Printf("errorBody=%v\n", errBody)
             
             fmt.Printf("respCode=%v\n", respCode)
+            return nil, wrap.Errorf("Failed to make transaction: %w", err)
         }
-        
-        return nil, wrap.Errorf("Failed to make transaction: %w", err)
     }
     
-    if res.Code != 0 {
+    if res != nil && res.Code != 0 {
         return nil, wrap.Errorf("Transaction code: %d", res.Code)
     }
     
