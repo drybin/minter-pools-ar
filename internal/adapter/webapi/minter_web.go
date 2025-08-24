@@ -63,7 +63,7 @@ func (c *MinterWeb) GetPriceOther(ctx context.Context, coin1 string, coin2 strin
         return nil, wrap.Errorf("failed to get swap info from minter api: %w", err)
     }
     
-    fmt.Println(fmt.Sprintf(calc_url_other, coin1, coin2, pip))
+    //fmt.Println(fmt.Sprintf(calc_url_other, coin1, coin2, pip))
     
     result := model.SwapData{}
     err = json.Unmarshal(res.Body(), &result)
