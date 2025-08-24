@@ -240,7 +240,7 @@ func (c *MinterWebapi) BuyRaw(ctx context.Context, swapData model.SwapData) (*mo
 func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData) (*model.BuyRawResponse, error) {
     fmt.Println("TRANSACTION ATTEMPT")
     w, _ := wallet.Create(c.passPhrase, "")
-    nonce, err := c.client.Nonce(w.Address)
+    nonce, err := c.clientGate.Nonce(w.Address)
     if err != nil {
         log.Fatalf("failed to get nonce: %v", err)
     }
@@ -284,6 +284,7 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
             fmt.Printf("m=%v\n", m)
             fmt.Printf("errorBody=%v\n", errBody)
             needVal := c.tryToParseAmountError(m)
+            fmt.Printf("needVal=%v\n", needVal)
             if needVal == nil {
                 return nil, wrap.Errorf("Failed to make transaction: %w", err)
             }
