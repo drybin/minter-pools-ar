@@ -284,7 +284,10 @@ func (c *MinterWebapi) BuyRawFloat(ctx context.Context, swapData model.SwapData)
             fmt.Printf("m=%v\n", m)
             fmt.Printf("errorBody=%v\n", errBody)
             needVal := c.tryToParseAmountError(m)
-            fmt.Printf("needVal=%v\n", needVal)
+            if needVal != nil {
+                fmt.Printf("needVal=%v\n", *needVal)
+            }
+            
             if needVal == nil {
                 return nil, wrap.Errorf("Failed to make transaction: %w", err)
             }
